@@ -39,6 +39,19 @@
   .autosave{margin-top:5px !important;font-size:11.5px;display:none}
   .autosave.on{display:block;color:#4a7c59}
   .autosave.warn{display:block;color:#b4453a}
+  .autosave.sync{display:block;color:var(--accent);font-weight:600}
+
+  /* 공유 설정 창 */
+  .modal{position:fixed;inset:0;background:rgba(20,20,19,.5);z-index:150;display:none;align-items:center;justify-content:center;padding:16px}
+  .modal.on{display:flex}
+  .modal .box{background:#fff;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.25);padding:22px 24px;width:min(520px,100%);max-height:90vh;overflow:auto}
+  .modal h3{margin:0 0 6px;font-size:16px;letter-spacing:-.01em}
+  .modal .sub{margin:0 0 16px;font-size:12.5px;color:var(--ink-3);line-height:1.6}
+  .modal label{display:block;font-size:11px;font-weight:600;color:var(--ink-3);margin:12px 0 5px}
+  .modal input[type=text]{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-family:inherit;font-size:13.5px;outline:none}
+  .modal input[type=text]:focus{border-color:var(--accent)}
+  .modal .row{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+  .modal .note{margin-top:14px;background:#f7f6f3;border-radius:8px;padding:10px 12px;font-size:12px;color:var(--ink-2);line-height:1.65;word-break:break-all}
   .toolbar{display:flex;gap:8px;flex-wrap:wrap}
 
   button{
@@ -91,6 +104,14 @@
   .vchip.on{background:var(--accent);border-color:var(--accent);color:#fff}
   .vchip .n{font-size:11px;opacity:.7;font-variant-numeric:tabular-nums}
   .vchip.on .n{opacity:.85}
+  #seednote{display:none}
+  #seednote.on{display:flex}
+  #seednote .fn{
+    display:inline-flex;align-items:center;gap:8px;background:#eef2f4;border:1px solid #d3dee3;
+    color:var(--accent);border-radius:8px;padding:6px 10px;font-size:12.5px;
+  }
+  #seednote .fn button{background:#fff;border-color:#c9d7de;color:var(--accent);font-size:12px;padding:4px 9px;border-radius:6px}
+  #seednote .fn button:hover{background:var(--accent);border-color:var(--accent);color:#fff}
   .filtnote{display:none}
   .filtnote.on{display:flex}
   .filtnote .fn{
@@ -454,6 +475,7 @@
       <h1>품목 사양 · 발주 입력</h1>
       <p>거래처 · 출시차수 · 카테고리 · 품명 · 이미지 · 진행컬러 · 컬러별 초도수량 · 옵션 · 단가 · 무게 · 사이즈 · 소재</p>
       <p class="autosave" id="autosave"></p>
+      <p class="autosave" id="syncstate"></p>
     </div>
     <div class="toolbar">
       <button id="btn-xlsx" class="primary">엑셀 내보내기</button>
@@ -461,6 +483,8 @@
       <div class="sep"></div>
       <button id="btn-save">저장</button>
       <button id="btn-saveview" style="display:none">보이는 것만 저장</button>
+      <button id="btn-publish">배포용 HTML</button>
+      <button id="btn-share">동료와 공유</button>
       <button id="btn-load">불러오기</button>
       <button id="btn-merge">합치기</button>
       <button id="btn-print">인쇄</button>
@@ -480,6 +504,7 @@
       <div class="frow" id="cchips"></div>
       <div class="frow" id="pchips"></div>
       <div class="frow" id="filtnote"></div>
+      <div class="frow" id="seednote"></div>
     </div>
     <div class="gsel">
       <span class="vlab">묶어보기</span>
@@ -552,12 +577,41 @@
   <button class="lb-nav prev" data-act="lbprev" title="이전 이미지">‹</button>
   <button class="lb-nav next" data-act="lbnext" title="다음 이미지">›</button>
 </div>
+<div class="modal" id="sharebox">
+  <div class="box">
+    <h3>동료와 공유</h3>
+    <p class="sub">같은 <b>주소</b>와 <b>방 이름</b>을 쓰는 사람끼리 자료가 실시간으로 맞춰집니다.<br>
+      주소는 Cloudflare에 올린 공유 서버 주소입니다.</p>
+    <label>공유 서버 주소</label>
+    <input type="text" id="sh-url" placeholder="https://이름.workers.dev" autocomplete="off">
+    <label>방 이름 (영문·숫자·- _ , 3자 이상)</label>
+    <input type="text" id="sh-room" placeholder="wisland-2026fw" autocomplete="off">
+    <div class="note" id="sh-link"></div>
+    <div class="row">
+      <button id="sh-off" class="ghost">공유 끄기</button>
+      <button id="sh-copy">공유 링크 복사</button>
+      <button id="sh-cancel">닫기</button>
+      <button id="sh-save" class="primary">켜기</button>
+    </div>
+  </div>
+</div>
 <div class="drop-veil" id="veil"><span>여기에 놓으면 저장 파일을 불러옵니다</span></div>
 <div class="toast" id="toast"></div>
 
+<!--SEED-->
 <script>
 (function(){
   "use strict";
+
+  // 배포용 파일을 만들 때 쓸 원본 HTML (아직 화면을 그리기 전이라 깨끗한 상태)
+  var PRISTINE = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+
+  // 이 파일에 심어져 있는 발주 데이터 (배포용으로 만든 파일이면 들어 있다)
+  var seedDoc = null;
+  try{
+    var _se = document.getElementById("seed-data");
+    if(_se && _se.textContent.trim()) seedDoc = JSON.parse(_se.textContent);
+  }catch(_e){ seedDoc = null; }
 
   /* ---------------- state ---------------- */
   var rows = [];
@@ -585,12 +639,22 @@
   var PALETTE = ["#c3c7cc","#cfa53f","#e3c453","#dda394","#e6e5e1","#1c1c1a","#b4453a","#2f4858"];
   var paletteIdx = 0;
 
+  function uid(){
+    return "r" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
   function newRow(d){
-    return Object.assign({
-      id: seq++, vendor:"", phase:"", category:"", names:[""], material:"",
+    var r = Object.assign({
+      id: seq++, uid:"", mt:0,
+      vendor:"", phase:"", category:"", names:[""], material:"",
       qty:"", price:"", weight:"", sizeText:"", img:null, colors:[], options:[]
     }, d || {});
+    if(!r.uid) r.uid = uid();
+    if(!r.mt) r.mt = Date.now();
+    return r;
   }
+  // 이 행이 방금 바뀌었다고 표시 (동료와 합칠 때 어느 쪽이 최신인지 판단하는 기준)
+  function touch(r){ if(r) r.mt = Date.now(); }
+  var deletedRows = {};   // { uid: 지운 시각 }
   function find(id){ for(var i=0;i<rows.length;i++){ if(rows[i].id===id) return rows[i]; } return null; }
   // 컬러가 있으면 컬러별 초도수량 합, 없으면 행 자체 수량
   function rowQty(r){
@@ -959,7 +1023,7 @@
       totals(viewRows());
       return;
     }
-    scheduleSave();
+    scheduleSave(); touch(r);
     if(f==="oprice"){
       var op = r.options[+e.target.dataset.oi];
       if(op) op.price = e.target.value;
@@ -983,6 +1047,7 @@
   function swatchSync(el){
     var tr = el.closest("tr"), r = find(+tr.dataset.id);
     if(!r) return;
+    touch(r);
     var c = r.colors[+el.dataset.ci];
     var wasHexName = /^#[0-9a-f]{6}$/i.test(String(c.name||"").trim());
     c.hex = el.value;
@@ -1011,7 +1076,7 @@
     if(f!=="vendor" && f!=="phase" && f!=="category") return;
     var tr = e.target.closest("tr"), r = find(+tr.dataset.id);
     if(!r) return;
-    r[f] = e.target.value;
+    r[f] = e.target.value; touch(r);
     afterClassChange(r, f, e.target);
   });
   tbody.addEventListener("focusout", function(){
@@ -1050,17 +1115,23 @@
     var tr = btn.closest("tr"); if(!tr || !tr.dataset.id) return;
     var id = +tr.dataset.id, r = find(id);
 
-    if(act==="del"){ closeVpick(); rows = rows.filter(function(x){return x.id!==id}); render(); }
+    if(act==="del"){
+      closeVpick();
+      if(r && r.uid) deletedRows[r.uid] = Date.now();
+      rows = rows.filter(function(x){return x.id!==id});
+      render();
+    }
     else if(act==="dup"){
-      var c = JSON.parse(JSON.stringify(r)); c.id = seq++;
+      var c = JSON.parse(JSON.stringify(r));
+      c.id = seq++; c.uid = uid(); c.mt = Date.now();
       rows.splice(rows.indexOf(r)+1, 0, c); render();
     }
-    else if(act==="imgdel"){ e.stopPropagation(); r.img = null; render(); }
+    else if(act==="imgdel"){ e.stopPropagation(); r.img = null; touch(r); render(); }
     else if(act==="imgrepl"){ e.stopPropagation(); activeImgId = id; $("#file-img").value=""; $("#file-img").click(); }
     else if(act==="img"){ activeImgId = id; $("#file-img").value=""; $("#file-img").click(); }
     else if(act==="zoom"){ openLb(id); }
     else if(act==="vopen"){ e.stopPropagation(); openVpick(btn); }
-    else if(act==="coldel"){ r.colors.splice(+btn.dataset.ci,1); render(); }
+    else if(act==="coldel"){ r.colors.splice(+btn.dataset.ci,1); touch(r); render(); }
     else if(act==="colopen"){ openChipId = id; openOptId = null; render(); focusIn(id, "newname"); }
     else if(act==="coladd"){ commitColor(tr); }
     else if(act==="colpreset"){
@@ -1068,18 +1139,18 @@
       if(r.colors.some(function(c){ return String(c.name||"").trim() === pn; })){
         return toast(pn + "는 이미 넣었습니다");
       }
-      r.colors.push({ name:pn, hex:ph, qty:"", price:"" });
+      r.colors.push({ name:pn, hex:ph, qty:"", price:"" }); touch(r);
       openChipId = id; render(); focusIn(id, "newname");
     }
     else if(act==="nmadd"){
       if(nameList(r).length < MAX_NAMES){
-        r.names.push(""); render(); focusNm(id, r.names.length - 1);
+        r.names.push(""); touch(r); render(); focusNm(id, r.names.length - 1);
       } else toast("품명은 최대 "+MAX_NAMES+"개까지 넣을 수 있습니다");
     }
     else if(act==="nmdel"){
-      if(nameList(r).length > 1){ r.names.splice(+btn.dataset.ni, 1); render(); }
+      if(nameList(r).length > 1){ r.names.splice(+btn.dataset.ni, 1); touch(r); render(); }
     }
-    else if(act==="optdel"){ r.options.splice(+btn.dataset.si,1); render(); }
+    else if(act==="optdel"){ r.options.splice(+btn.dataset.si,1); touch(r); render(); }
     else if(act==="optopen"){ openOptId = id; openChipId = null; render(); focusIn(id, "newopt"); }
     else if(act==="optadd"){ commitOption(tr); }
   });
@@ -1097,13 +1168,13 @@
     var hex = tr.querySelector('[data-act="newhex"]').value;
     var name = tr.querySelector('[data-act="newname"]').value.trim();
     if(!name && !hex) return;
-    r.colors.push({ name: name || hex.toUpperCase(), hex: hex, qty: "", price: "" });
+    r.colors.push({ name: name || hex.toUpperCase(), hex: hex, qty: "", price: "" }); touch(r);
     paletteIdx++; openChipId = r.id; render(); focusIn(r.id, "newname");
   }
   function commitOption(tr){
     var r = find(+tr.dataset.id); if(!r) return;
     var v = tr.querySelector('[data-act="newopt"]').value.trim();
-    if(v && !r.options.some(function(o){ return o.name === v; })) r.options.push({ name:v, price:"" });
+    if(v && !r.options.some(function(o){ return o.name === v; })){ r.options.push({ name:v, price:"" }); touch(r); }
     openOptId = r.id; render(); focusIn(r.id, "newopt");
   }
 
@@ -1196,7 +1267,7 @@
   $("#file-img").addEventListener("change", function(e){
     var f = e.target.files[0]; if(!f || activeImgId==null) return;
     var r = find(activeImgId); if(!r) return;
-    shrink(f, function(d){ r.img = d; render(); });
+    shrink(f, function(d){ r.img = d; touch(r); render(); });
   });
 
   tbody.addEventListener("dragover", function(e){
@@ -1212,7 +1283,7 @@
     var f = e.dataTransfer.files && e.dataTransfer.files[0];
     if(!f || !/^image\//.test(f.type)) return;
     var r = find(+t.closest("tr").dataset.id);
-    shrink(f, function(d){ r.img = d; render(); });
+    shrink(f, function(d){ r.img = d; touch(r); render(); });
   });
 
   tbody.addEventListener("mousedown", function(e){
@@ -1227,7 +1298,7 @@
         var f = items[i].getAsFile(); if(!f) continue;
         var r = find(activeImgId); if(!r) return;
         e.preventDefault();
-        shrink(f, function(d){ r.img = d; render(); toast("이미지를 붙여넣었습니다"); });
+        shrink(f, function(d){ r.img = d; touch(r); render(); toast("이미지를 붙여넣었습니다"); });
         return;
       }
     }
@@ -1363,6 +1434,7 @@
   $("#btn-clear").addEventListener("click", function(){
     if(!rows.length) return;
     if(confirm("입력한 모든 품목을 지웁니다. 계속할까요?")){
+      rows.forEach(function(r){ if(r.uid) deletedRows[r.uid] = Date.now(); });
       rows = []; filterV = filterC = filterP = null; closeVpick(); render(); clearLocal();
     }
   });
@@ -1460,6 +1532,7 @@
         rowLevelPrice = "";
       }
       return newRow({
+        uid: r.uid || "", mt: r.mt || 0,
         vendor:(r.vendor || legacyVendor || ""),
         phase:(r.phase||""), category:(r.category||""),
         names: (Array.isArray(r.names) && r.names.length) ? r.names.slice()
@@ -1939,8 +2012,10 @@
     }catch(e){ dbFail = true; fn(null); }
   }
 
+  var currentSeedId = (seedDoc && seedDoc.seedId) || "";
   function docPayload(){
-    return { v:5, meta:meta(), view:{ groupBy:groupBy }, rows:rows, savedAt: Date.now() };
+    return { v:5, meta:meta(), view:{ groupBy:groupBy }, rows:rows,
+             deleted: deletedRows, seedId: currentSeedId, savedAt: Date.now() };
   }
 
   // 아무것도 안 적힌 상태는 저장하지 않는다 (빈 화면을 되살리는 일이 없게)
@@ -1972,6 +2047,7 @@
     if(!ready) return;
     clearTimeout(saveTimer);
     saveTimer = setTimeout(saveLocal, 600);
+    if(sync.on){ sync.dirty = true; schedulePush(1500); }
   }
   function clearLocal(){
     withStore("readwrite", function(st){ if(st){ try{ st.delete(KEY); }catch(e){} } });
@@ -2003,31 +2079,320 @@
     el.className = "autosave on";
   }
 
+  // 저장 파일/심어둔 데이터를 화면에 적용
+  function applyDoc(d){
+    if(d.meta){
+      $("#m-title").value = d.meta.title || "";
+      $("#m-owner").value = d.meta.owner || "";
+      if(d.meta.date) $("#m-date").value = d.meta.date;
+    }
+    seq = 1;
+    rows = normalizeRows(d);
+    deletedRows = (d.deleted && typeof d.deleted === "object") ? d.deleted : {};
+    groupBy = (d.view && d.view.groupBy) || "none";
+    filterV = filterC = filterP = null;
+    openChipId = openOptId = null; closeVpick();
+  }
+
+  function showSeedNote(){
+    var el = $("#seednote");
+    el.classList.add("on");
+    el.innerHTML = '<span class="fn">새 발주서가 올라와 있습니다 (' + (seedDoc.rows ? seedDoc.rows.length : 0)
+      + '개 품목)<button data-act="useseed">새 발주서로 시작</button></span>';
+  }
+  $("#seednote").addEventListener("click", function(e){
+    if(!e.target.closest('[data-act="useseed"]')) return;
+    if(!confirm("지금 화면의 내용을 새 발주서로 바꿉니다. 계속할까요?\n(지금 내용을 남기려면 먼저 저장 버튼을 눌러 파일로 받아두세요)")) return;
+    applyDoc(seedDoc);
+    currentSeedId = seedDoc.seedId || "";
+    $("#seednote").classList.remove("on"); $("#seednote").innerHTML = "";
+    render(); saveLocal();
+    toast("새 발주서 " + rows.length + "개 품목을 불러왔습니다");
+  });
+
+  /* ----- 배포용 HTML (데이터를 파일 안에 심어서 내보내기) ----- */
+  // 태그 문자열을 쪼개서 만든다 — 이 소스 자체에 <script ...> 가 통째로 들어가면
+  // 파일을 만들 때 자기 코드를 잘라먹는다.
+  var SEED_OPEN = "<scr" + 'ipt id="seed-data" type="application/json">';
+  var SEED_CLOSE = "</scr" + "ipt>";
+  var SEED_MARK = "<!--SEED-->";
+
+  $("#btn-publish").addEventListener("click", function(){
+    var view = viewRows();
+    if(!view.length) return toast("내보낼 품목이 없습니다");
+    var payload = {
+      v:5, meta:meta(), view:{ groupBy:groupBy }, rows:view,
+      seedId: "s" + Date.now()
+    };
+    var json = JSON.stringify(payload).replace(/<\//g, "<\\/");
+
+    var idx = PRISTINE.indexOf(SEED_MARK);
+    if(idx < 0) return toast("파일을 만들지 못했습니다 — 원본 index.html 을 다시 받아 쓰세요");
+    var head = PRISTINE.slice(0, idx), tail = PRISTINE.slice(idx);
+    var old = head.lastIndexOf(SEED_OPEN);
+    if(old >= 0) head = head.slice(0, old);   // 이미 심어져 있던 데이터 제거
+
+    var out = head + SEED_OPEN + json + SEED_CLOSE + "\n" + tail;
+    download(new Blob([out], {type:"text/html;charset=utf-8"}), "index.html");
+    toast(view.length + "개 품목이 들어 있는 index.html 을 만들었습니다 — 이 파일을 올리세요");
+  });
+
+  /* ---------------- 동료와 공유 (서버에 같이 저장) ---------------- */
+  var SKEY = "settings";
+  var sync = { on:false, url:"", room:"", rev:0, dirty:false, busy:false,
+               pushT:null, pollT:null, tries:0 };
+
+  function kvGet(k, cb){
+    withStore("readonly", function(st){
+      if(!st) return cb(null);
+      try{ var g = st.get(k); g.onsuccess = function(){ cb(g.result || null); }; g.onerror = function(){ cb(null); }; }
+      catch(e){ cb(null); }
+    });
+  }
+  function kvPut(k, v){
+    withStore("readwrite", function(st){ if(st){ try{ st.put(v, k); }catch(e){} } });
+  }
+
+  function hhmm(d){
+    return String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0");
+  }
+  function syncMsg(t, bad){
+    var el = $("#syncstate");
+    if(!el) return;
+    if(!t){ el.textContent = ""; el.className = "autosave"; return; }
+    el.textContent = t;
+    el.className = bad ? "autosave warn" : "autosave sync";
+  }
+  function endpoint(){
+    return String(sync.url||"").replace(/\/+$/,"") + "/d/" + encodeURIComponent(sync.room);
+  }
+
+  // 내 것과 서버 것을 행 단위로 합친다 (같은 행이면 나중에 고친 쪽이 이김)
+  function mergeIn(remoteDoc){
+    var incoming;
+    try{ incoming = normalizeRows(remoteDoc); }catch(e){ return false; }
+
+    var rdel = (remoteDoc.deleted && typeof remoteDoc.deleted === "object") ? remoteDoc.deleted : {};
+    Object.keys(rdel).forEach(function(u){
+      if(!deletedRows[u] || rdel[u] > deletedRows[u]) deletedRows[u] = rdel[u];
+    });
+
+    // 내 화면이 아직 비어 있으면(처음 들어온 사람) 서버 것을 그대로 받는다.
+    // 이걸 안 하면 처음 열 때 생기는 빈 줄 3개가 같이 섞인다.
+    if(!hasContent()){
+      rows = incoming.filter(function(r){
+        var d = deletedRows[r.uid];
+        return !(d && d > (r.mt||0));
+      });
+      if(remoteDoc.meta){
+        $("#m-title").value = remoteDoc.meta.title || "";
+        $("#m-owner").value = remoteDoc.meta.owner || "";
+        if(remoteDoc.meta.date) $("#m-date").value = remoteDoc.meta.date;
+      }
+      if(remoteDoc.view && remoteDoc.view.groupBy) groupBy = remoteDoc.view.groupBy;
+      return true;
+    }
+
+    var byUid = {}, order = [];
+    function take(r){
+      var u = r.uid || (r.uid = uid());
+      if(!byUid[u]){ byUid[u] = r; order.push(u); }
+      else if((r.mt||0) > (byUid[u].mt||0)) byUid[u] = r;
+    }
+    rows.forEach(take);
+    incoming.forEach(take);
+
+    var used = {};
+    rows = order.map(function(u){ return byUid[u]; })
+      .filter(function(r){
+        var d = deletedRows[r.uid];
+        return !(d && d > (r.mt||0));
+      });
+    rows.forEach(function(r){
+      if(!r.id || used[r.id]) r.id = seq++;
+      used[r.id] = 1;
+    });
+
+    // 문서 정보는 내가 고치는 중이 아니면 서버 것을 따른다
+    if(!sync.dirty && remoteDoc.meta){
+      $("#m-title").value = remoteDoc.meta.title || "";
+      $("#m-owner").value = remoteDoc.meta.owner || "";
+      if(remoteDoc.meta.date) $("#m-date").value = remoteDoc.meta.date;
+    }
+    return true;
+  }
+
+  function syncPull(cb){
+    if(!sync.on){ cb && cb(); return; }
+    fetch(endpoint(), { cache:"no-store" })
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if(typeof j.rev !== "number") throw new Error("형식 오류");
+        if(j.rev !== sync.rev && j.doc){
+          if(mergeIn(j.doc)){ render(); saveLocal(); }
+        }
+        sync.rev = j.rev;
+        syncMsg("동료와 공유 중 · " + hhmm(new Date()) + " 확인");
+        cb && cb(true);
+      })
+      .catch(function(){
+        syncMsg("공유 서버에 연결되지 않습니다 — 인터넷·주소를 확인하세요", true);
+        cb && cb(false);
+      });
+  }
+
+  function schedulePush(ms){
+    if(!sync.on) return;
+    clearTimeout(sync.pushT);
+    sync.pushT = setTimeout(syncPush, ms || 1500);
+  }
+
+  function syncPush(){
+    if(!sync.on || sync.busy) return;
+    sync.busy = true;
+    var payload = JSON.stringify({ doc: docPayload() });
+    fetch(endpoint(), {
+      method:"PUT",
+      headers:{ "Content-Type":"application/json", "If-Match": String(sync.rev) },
+      body: payload
+    })
+    .then(function(r){ return r.json().then(function(j){ return { st:r.status, j:j }; }); })
+    .then(function(res){
+      sync.busy = false;
+      if(res.st === 200){
+        sync.rev = res.j.rev; sync.dirty = false; sync.tries = 0;
+        syncMsg("동료와 공유 중 · " + hhmm(new Date()) + " 저장됨");
+      } else if(res.st === 409){
+        // 동료가 먼저 저장함 → 합치고 다시 올린다
+        sync.rev = res.j.rev;
+        if(res.j.doc && mergeIn(res.j.doc)){ render(); saveLocal(); }
+        if(sync.tries++ < 4) schedulePush(400);
+        else { sync.tries = 0; syncMsg("동료 수정과 겹쳐 잠시 후 다시 저장합니다", true); schedulePush(3000); }
+      } else {
+        syncMsg((res.j && res.j.error) ? res.j.error : "공유 저장에 실패했습니다", true);
+      }
+    })
+    .catch(function(){
+      sync.busy = false;
+      syncMsg("공유 서버에 연결되지 않습니다 — 인터넷·주소를 확인하세요", true);
+    });
+  }
+
+  function startSync(){
+    clearInterval(sync.pollT);
+    if(!sync.on){ syncMsg(""); return; }
+    syncMsg("공유 서버에 연결하는 중…");
+    syncPull(function(ok){
+      if(ok && hasContent()) schedulePush(300);
+      sync.pollT = setInterval(function(){ if(!sync.busy) syncPull(); }, 6000);
+    });
+  }
+
+  /* ----- 공유 설정 창 ----- */
+  function shareLink(){
+    var base = location.origin + location.pathname;
+    var raw = sync.url + "|" + sync.room;
+    return base + "#s=" + btoa(unescape(encodeURIComponent(raw)));
+  }
+  function openShare(){
+    $("#sh-url").value = sync.url || "";
+    $("#sh-room").value = sync.room || "";
+    $("#sh-link").textContent = sync.on ? ("공유 링크: " + shareLink()) : "켜기를 누르면 동료에게 보낼 링크가 만들어집니다.";
+    $("#sharebox").classList.add("on");
+  }
+  function closeShare(){ $("#sharebox").classList.remove("on"); }
+  $("#btn-share").addEventListener("click", openShare);
+  $("#sh-cancel").addEventListener("click", closeShare);
+  $("#sharebox").addEventListener("click", function(e){ if(e.target === $("#sharebox")) closeShare(); });
+  $("#sh-save").addEventListener("click", function(){
+    var u = $("#sh-url").value.trim(), rm = $("#sh-room").value.trim();
+    if(!/^https?:\/\//i.test(u)) return alert("공유 서버 주소를 https:// 로 시작하게 넣어주세요.");
+    if(!/^[A-Za-z0-9_-]{3,64}$/.test(rm)) return alert("방 이름은 영문·숫자·- _ 로 3자 이상이어야 합니다.");
+    sync.url = u.replace(/\/+$/,""); sync.room = rm; sync.on = true; sync.rev = 0;
+    kvPut(SKEY, { url:sync.url, room:sync.room, on:true });
+    $("#sh-link").textContent = "공유 링크: " + shareLink();
+    startSync();
+    toast("공유를 켰습니다 — 동료에게 공유 링크를 보내세요");
+  });
+  $("#sh-off").addEventListener("click", function(){
+    sync.on = false; clearInterval(sync.pollT); clearTimeout(sync.pushT);
+    kvPut(SKEY, { url:sync.url, room:sync.room, on:false });
+    syncMsg(""); closeShare(); toast("공유를 껐습니다 — 이 브라우저에만 저장됩니다");
+  });
+  $("#sh-copy").addEventListener("click", function(){
+    if(!sync.on) return alert("먼저 켜기를 눌러주세요.");
+    var t = shareLink();
+    if(navigator.clipboard) navigator.clipboard.writeText(t).then(function(){ toast("공유 링크를 복사했습니다"); },
+      function(){ prompt("이 주소를 복사해서 동료에게 보내세요", t); });
+    else prompt("이 주소를 복사해서 동료에게 보내세요", t);
+  });
+
+  // 링크(#s=...)로 들어오면 설정을 자동으로 받아들인다
+  function settingsFromHash(){
+    var m = /[#&]s=([^&]+)/.exec(location.hash || "");
+    if(!m) return null;
+    try{
+      var raw = decodeURIComponent(escape(atob(m[1])));
+      var i = raw.lastIndexOf("|");
+      if(i < 0) return null;
+      return { url: raw.slice(0, i), room: raw.slice(i+1), on:true };
+    }catch(e){ return null; }
+  }
+
+  // 저장된 공유 설정(또는 링크로 받은 설정)으로 공유를 시작
+  function bootSync(){
+    var fromLink = settingsFromHash();
+    if(fromLink){
+      sync.url = fromLink.url; sync.room = fromLink.room; sync.on = true;
+      kvPut(SKEY, { url:sync.url, room:sync.room, on:true });
+      try{ history.replaceState(null, "", location.pathname + location.search); }catch(e){}
+      startSync();
+      toast("동료와 공유하는 발주서에 연결했습니다");
+      return;
+    }
+    kvGet(SKEY, function(cfg){
+      if(cfg && cfg.on && cfg.url && cfg.room){
+        sync.url = cfg.url; sync.room = cfg.room; sync.on = true;
+        startSync();
+      }
+    });
+  }
+
   /* ---------------- init ---------------- */
   $("#m-date").value = new Date().toISOString().slice(0,10);
   render();  // 빈 화면 먼저
 
   loadLocal(function(doc){
+    // 1) 이 브라우저에서 작업하던 내용이 있으면 그것부터
     if(doc && Array.isArray(doc.rows) && doc.rows.length){
       try{
-        if(doc.meta){
-          $("#m-title").value = doc.meta.title || "";
-          $("#m-owner").value = doc.meta.owner || "";
-          if(doc.meta.date) $("#m-date").value = doc.meta.date;
-        }
-        seq = 1;
-        rows = normalizeRows(doc);
-        groupBy = (doc.view && doc.view.groupBy) || "none";
-        filterV = filterC = filterP = null;
+        applyDoc(doc);
+        currentSeedId = doc.seedId || currentSeedId;
         ready = true; render();
         stampAuto(doc.savedAt ? new Date(doc.savedAt) : new Date());
         toast("이어서 작업합니다 — 저장돼 있던 " + rows.length + "개 품목을 되살렸습니다");
+        // 그 사이 새 발주서가 배포됐으면 알려만 준다 (작업 내용은 건드리지 않는다)
+        if(seedDoc && seedDoc.seedId && doc.seedId !== seedDoc.seedId) showSeedNote();
+        bootSync();
         return;
-      }catch(e){ /* 복원 실패 시 새로 시작 */ }
+      }catch(e){ /* 복원 실패 시 아래로 */ }
     }
+    // 2) 파일에 심어둔 발주서가 있으면 그걸로 시작
+    if(seedDoc && Array.isArray(seedDoc.rows) && seedDoc.rows.length){
+      try{
+        applyDoc(seedDoc);
+        currentSeedId = seedDoc.seedId || "";
+        ready = true; render(); saveLocal();
+        toast("발주서 " + rows.length + "개 품목을 불러왔습니다");
+        bootSync();
+        return;
+      }catch(e){ /* 아래로 */ }
+    }
+    // 3) 빈 화면
     rows.push(newRow(), newRow(), newRow());
     ready = true; render();
     if(dbFail) stampAuto(null);
+    bootSync();
   });
 })();
 </script>
