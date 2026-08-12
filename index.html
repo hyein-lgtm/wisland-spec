@@ -130,7 +130,7 @@
 
   /* ---------- table ---------- */
   .table-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow-x:auto}
-  table{width:100%;min-width:1500px;border-collapse:collapse;table-layout:fixed}
+  table{width:100%;min-width:1620px;border-collapse:collapse;table-layout:fixed}
   thead th{
     background:#fafaf8;font-size:11px;font-weight:600;color:var(--ink-3);letter-spacing:.03em;
     text-align:left;padding:11px 10px;border-bottom:1px solid var(--line);white-space:nowrap;
@@ -150,9 +150,10 @@
 
   col.c-h{width:26px} col.c-no{width:32px} col.c-img{width:84px}
   col.c-vend{width:126px} col.c-ph{width:70px} col.c-cat{width:90px}
-  col.c-name{width:164px} col.c-col{width:124px} col.c-iq{width:130px} col.c-opt{width:160px}
+  col.c-name{width:150px} col.c-pname{width:150px} col.c-col{width:120px}
+  col.c-iq{width:126px} col.c-opt{width:150px}
   col.c-price{width:112px}
-  col.c-wt{width:76px} col.c-sz{width:110px} col.c-mat{width:150px} col.c-act{width:52px}
+  col.c-wt{width:74px} col.c-sz{width:106px} col.c-mat{width:144px} col.c-act{width:52px}
 
   .handle{cursor:grab;color:#c9c8c2;text-align:center;user-select:none}
   .handle:active{cursor:grabbing}
@@ -519,7 +520,7 @@
     <table>
       <colgroup>
         <col class="c-h"><col class="c-no"><col class="c-img"><col class="c-vend">
-        <col class="c-ph"><col class="c-cat"><col class="c-name">
+        <col class="c-ph"><col class="c-cat"><col class="c-name"><col class="c-pname">
         <col class="c-col"><col class="c-iq"><col class="c-opt">
         <col class="c-price">
         <col class="c-wt"><col class="c-sz"><col class="c-mat"><col class="c-act">
@@ -533,6 +534,7 @@
           <th style="text-align:center">출시</th>
           <th style="text-align:center">카테고리</th>
           <th>품명</th>
+          <th>상품명</th>
           <th>진행컬러</th>
           <th class="num">초도수량</th>
           <th>옵션 · 단가</th>
@@ -546,7 +548,7 @@
       <tbody id="tbody"></tbody>
       <tfoot>
         <tr>
-          <td colspan="8"><span class="lbl">합계</span> &nbsp;<span id="f-count" style="color:var(--ink-2)">0개 품목</span><span class="filt" id="f-filter"></span></td>
+          <td colspan="9"><span class="lbl">합계</span> &nbsp;<span id="f-count" style="color:var(--ink-2)">0개 품목</span><span class="filt" id="f-filter"></span></td>
           <td class="val total" id="f-qty" data-l="총 초도수량">0</td>
           <td></td>
           <td></td>
@@ -645,7 +647,7 @@
   function newRow(d){
     var r = Object.assign({
       id: seq++, uid:"", mt:0,
-      vendor:"", phase:"", category:"", names:[""], material:"",
+      vendor:"", phase:"", category:"", names:[""], pname:"", material:"",
       qty:"", price:"", weight:"", sizeText:"", img:null, colors:[], options:[]
     }, d || {});
     if(!r.uid) r.uid = uid();
@@ -757,7 +759,7 @@
 
     var view = viewRows();
     if(!view.length){
-      tbody.innerHTML = '<tr><td colspan="15"><div class="empty">'
+      tbody.innerHTML = '<tr><td colspan="16"><div class="empty">'
         + (rows.length
             ? '<strong>이 조건에 맞는 품목이 없습니다</strong>위 “전체”를 눌러 모두 보거나 아래에서 품목을 추가하세요.'
             : '<strong>아직 품목이 없습니다</strong>아래 “＋ 품목 추가”를 눌러 시작하세요.')
@@ -781,7 +783,7 @@
         var g = bucket[k], gq = 0;
         g.forEach(function(r){ gq += rowQty(r); });
         html += '<tr class="grp">'
-          + '<td colspan="8"><span class="gname">'+esc(klabel(k===NONE ? "" : k))+'</span>'
+          + '<td colspan="9"><span class="gname">'+esc(klabel(k===NONE ? "" : k))+'</span>'
           + '<span class="gcnt">'+g.length+'개 품목</span></td>'
           + '<td class="gval">'+fmt(gq)+'</td>'
           + '<td colspan="6"></td></tr>';
@@ -816,6 +818,7 @@
       + '<td data-l="출시">'+ selHTML(r, "phase", PHASES, phaseOf(r)) +'</td>'
       + '<td data-l="카테고리">'+ selHTML(r, "category", CATEGORIES, catOf(r)) +'</td>'
       + '<td data-l="품명">'+ namesHTML(r) +'</td>'
+      + '<td data-l="상품명"><textarea class="cell-in" data-f="pname" rows="1" placeholder="판매용 상품명">'+esc(r.pname)+'</textarea></td>'
       + '<td data-l="진행컬러">'+ colorHTML(r) +'</td>'
       + '<td data-l="초도수량">'+ iqtyHTML(r) +'</td>'
       + '<td data-l="옵션">'+ optionHTML(r) +'</td>'
@@ -1537,6 +1540,7 @@
         phase:(r.phase||""), category:(r.category||""),
         names: (Array.isArray(r.names) && r.names.length) ? r.names.slice()
              : (r.name ? [String(r.name)] : [""]),
+        pname: r.pname || "",
         material:r.material||"",
         qty:rowLevelQty, price:rowLevelPrice, weight:r.weight||"",
         sizeText:(r.sizeText||""),
@@ -1630,7 +1634,7 @@
       lines.push(["제목", m.title, "담당자", m.owner, "작성일", m.date]);
       lines.push([]);
     }
-    lines.push(["NO","거래처","출시","카테고리","품명","진행컬러","컬러코드","초도수량","옵션","단가","무게(g)","사이즈","소재"]);
+    lines.push(["NO","거래처","출시","카테고리","품명","상품명","진행컬러","컬러코드","초도수량","옵션","단가","무게(g)","사이즈","소재"]);
     exportGroups().forEach(function(g){
       var gq = 0;
       g.rows.forEach(function(r){
@@ -1641,6 +1645,7 @@
           var first = (ci === 0);
           lines.push([
             first ? n : "", vend(r), phaseOf(r), catOf(r), nameJoin(r, " / "),
+            first ? r.pname : "",
             c ? c.name : "", c ? c.hex.toUpperCase() : "",
             (c ? num(c.qty) : num(r.qty)) || "",
             first ? optText(r, " / ") : "",
@@ -1652,13 +1657,13 @@
         });
       });
       if(g.key !== null){
-        lines.push(["", klabel(g.key)+" 소계", "", "", "", "", "", gq, "", "", "", "", ""]);
+        lines.push(["", klabel(g.key)+" 소계", "", "", "", "", "", "", gq, "", "", "", "", ""]);
         lines.push([]);
       }
     });
     var q=0, w=0;
     view.forEach(function(r){ var qq=rowQty(r); q+=qq; w+=qq*num(r.weight); });
-    lines.push(["","합계","","","","","",q,"","",w||"","","총 중량(g)"]);
+    lines.push(["","합계","","","","","","",q,"","",w||"","","총 중량(g)"]);
     var csv = lines.map(function(row){
       return row.map(function(c){
         var s = String(c==null?"":c);
@@ -1699,9 +1704,9 @@
       {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
   }
 
-  // A NO | B 이미지 | C 거래처 | D 출시 | E 카테고리 | F 품명 | G 진행컬러 | H 컬러코드
-  // I 초도수량 | J 옵션 | K 단가 | L 무게 | M 사이즈 | N 소재   (컬러별로 한 줄씩)
-  var XC = ["A","B","C","D","E","F","G","H","I","J","K","L","M","N"];
+  // A NO | B 이미지 | C 거래처 | D 출시 | E 카테고리 | F 품명 | G 상품명 | H 진행컬러
+  // I 컬러코드 | J 초도수량 | K 옵션 | L 단가 | M 무게 | N 사이즈 | O 소재  (컬러별로 한 줄씩)
+  var XC = ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O"];
   function cT(ref,s,v){ return '<c r="'+ref+'" s="'+s+'" t="inlineStr"><is><t xml:space="preserve">'+esc(v)+'</t></is></c>'; }
   function cN(ref,s,v){ return '<c r="'+ref+'" s="'+s+'"><v>'+v+'</v></c>'; }
   function cF(ref,s,f,v){ return '<c r="'+ref+'" s="'+s+'"><f>'+esc(f)+'</f><v>'+v+'</v></c>'; }
@@ -1778,7 +1783,7 @@
 
   async function buildXlsx(){
     var m = meta(), EMU = 9525, BOX = 68;
-    var COLW = [6,13,17,7,11,24,16,14,12,16,12,10,16,22];
+    var COLW = [6,13,17,7,11,22,22,15,14,12,16,12,10,15,20];
     var groups = exportGroups();
     var view = viewRows();
     var body = "", merges = [], media = [], anchors = [];
@@ -1795,7 +1800,7 @@
     merges.push("A1:"+LAST+"1", "A2:"+LAST+"2");
     body += '<row r="3" ht="8" customHeight="1"/>';
 
-    var HEAD = ["NO","이미지","거래처","출시","카테고리","품명","진행컬러","컬러코드","초도수량","옵션","단가","무게(g)","사이즈","소재"];
+    var HEAD = ["NO","이미지","거래처","출시","카테고리","품명","상품명","진행컬러","컬러코드","초도수량","옵션","단가","무게(g)","사이즈","소재"];
     body += '<row r="4" ht="24" customHeight="1">' + HEAD.map(function(h,i){ return cT(XC[i]+"4",3,h); }).join("") + '</row>';
 
     var sizes = await Promise.all(view.map(function(r){ return r.img ? imgMeta(r.img) : Promise.resolve(null); }));
@@ -1818,12 +1823,13 @@
           var iq = c ? num(c.qty) : num(r.qty);
           var cprice = c ? num(c.price) : num(r.price);
           var need = Math.max(
-            lineCount(c ? c.name : "", COLW[6]),
-            lineCount(c ? c.hex : "", COLW[7]),
+            lineCount(c ? c.name : "", COLW[7]),
+            lineCount(c ? c.hex : "", COLW[8]),
             first ? lineCount(nameJoin(r, "\n"), COLW[5]) : 1,
-            first ? lineCount(optText(r, ", "), COLW[9]) : 1,
-            first ? lineCount(r.sizeText, COLW[12]) : 1,
-            first ? lineCount(r.material, COLW[13]) : 1
+            first ? lineCount(r.pname, COLW[6]) : 1,
+            first ? lineCount(optText(r, ", "), COLW[10]) : 1,
+            first ? lineCount(r.sizeText, COLW[13]) : 1,
+            first ? lineCount(r.material, COLW[14]) : 1
           );
           var h = Math.max(22, need * 13 + 8);
           if(first && r.img && sz){
@@ -1843,14 +1849,15 @@
             + cT(XC[3]+rn, 15, phaseOf(r))
             + cT(XC[4]+rn, 15, catOf(r))
             + cT(XC[5]+rn, 5, first ? nameJoin(r, "\n") : "")
-            + cT(XC[6]+rn, 4, c ? c.name : "")
-            + cT(XC[7]+rn, 4, c ? c.hex.toUpperCase() : "")
-            + (iq ? cN(XC[8]+rn, 6, iq) : cE(XC[8]+rn, 6))
-            + cT(XC[9]+rn, 4, first ? optText(r, ", ") : "")
-            + (cprice ? cN(XC[10]+rn, 7, cprice) : cE(XC[10]+rn, 7))
-            + (first && wt ? cN(XC[11]+rn, 6, wt) : cE(XC[11]+rn, 6))
-            + cT(XC[12]+rn, 15, first ? r.sizeText : "")
-            + cT(XC[13]+rn, 4, first ? r.material : "")
+            + cT(XC[6]+rn, 5, first ? r.pname : "")
+            + cT(XC[7]+rn, 4, c ? c.name : "")
+            + cT(XC[8]+rn, 4, c ? c.hex.toUpperCase() : "")
+            + (iq ? cN(XC[9]+rn, 6, iq) : cE(XC[9]+rn, 6))
+            + cT(XC[10]+rn, 4, first ? optText(r, ", ") : "")
+            + (cprice ? cN(XC[11]+rn, 7, cprice) : cE(XC[11]+rn, 7))
+            + (first && wt ? cN(XC[12]+rn, 6, wt) : cE(XC[12]+rn, 6))
+            + cT(XC[13]+rn, 15, first ? r.sizeText : "")
+            + cT(XC[14]+rn, 4, first ? r.material : "")
             + '</row>';
         });
       });
@@ -1863,9 +1870,9 @@
           + cT("C"+hr,12, klabel(g.key))
           + cE("D"+hr,12) + cE("E"+hr,12)
           + cT("F"+hr,12, g.rows.length + "개 품목")
-          + cE("G"+hr,12) + cE("H"+hr,12)
-          + cF("I"+hr,13,"SUM(I"+gStart+":I"+e+")", gq)
-          + cE("J"+hr,12) + cE("K"+hr,12) + cE("L"+hr,12) + cE("M"+hr,12) + cE("N"+hr,12)
+          + cE("G"+hr,12) + cE("H"+hr,12) + cE("I"+hr,12)
+          + cF("J"+hr,13,"SUM(J"+gStart+":J"+e+")", gq)
+          + cE("K"+hr,12) + cE("L"+hr,12) + cE("M"+hr,12) + cE("N"+hr,12) + cE("O"+hr,12)
           + '</row>';
         body = body.replace("<!--GRP"+hr+"-->", grpXml);
         subRows.push(hr);
@@ -1878,15 +1885,15 @@
     rn++; body += '<row r="'+rn+'" ht="8" customHeight="1"/>';
     var lastData = rn - 1;
     rn++;
-    var qF = subRows.length ? "SUM("+subRows.map(function(x){return "I"+x}).join(",")+")" : "SUM(I"+firstData+":I"+lastData+")";
+    var qF = subRows.length ? "SUM("+subRows.map(function(x){return "J"+x}).join(",")+")" : "SUM(J"+firstData+":J"+lastData+")";
     body += '<row r="'+rn+'" ht="24" customHeight="1">'
       + cE("A"+rn,9) + cE("B"+rn,9) + cT("C"+rn,9,"합 계") + cE("D"+rn,9) + cE("E"+rn,9)
-      + cE("F"+rn,9) + cE("G"+rn,9) + cE("H"+rn,9)
-      + cF("I"+rn,10,qF,tq)
-      + cE("J"+rn,9) + cE("K"+rn,9)
-      + (tw ? cN("L"+rn,10,tw) : cE("L"+rn,9))
-      + cE("M"+rn,9)
-      + cT("N"+rn,9, tw ? "총 중량(g)" : "")
+      + cE("F"+rn,9) + cE("G"+rn,9) + cE("H"+rn,9) + cE("I"+rn,9)
+      + cF("J"+rn,10,qF,tq)
+      + cE("K"+rn,9) + cE("L"+rn,9)
+      + (tw ? cN("M"+rn,10,tw) : cE("M"+rn,9))
+      + cE("N"+rn,9)
+      + cT("O"+rn,9, tw ? "총 중량(g)" : "")
       + '</row>';
     var lastRow = rn;
 
@@ -2023,7 +2030,7 @@
     if($("#m-title").value.trim() || $("#m-owner").value.trim()) return true;
     return rows.some(function(r){
       return vend(r) || catOf(r) || phaseOf(r) || nameJoin(r,"") || r.img
-        || String(r.material||"").trim() || String(r.sizeText||"").trim()
+        || String(r.pname||"").trim() || String(r.material||"").trim() || String(r.sizeText||"").trim()
         || r.colors.length || r.options.length
         || rowQty(r) || num(r.price) || num(r.weight);
     });
