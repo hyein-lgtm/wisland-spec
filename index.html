@@ -130,7 +130,7 @@
 
   /* ---------- table ---------- */
   .table-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow-x:auto}
-  table{width:100%;min-width:1620px;border-collapse:collapse;table-layout:fixed}
+  table{width:100%;min-width:1650px;border-collapse:collapse;table-layout:fixed}
   thead th{
     background:#fafaf8;font-size:11px;font-weight:600;color:var(--ink-3);letter-spacing:.03em;
     text-align:left;padding:11px 10px;border-bottom:1px solid var(--line);white-space:nowrap;
@@ -148,7 +148,7 @@
   tbody tr.grp .gcnt{color:var(--ink-3);font-size:11.5px;margin-left:8px}
   tbody tr.grp .gval{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
 
-  col.c-h{width:26px} col.c-no{width:32px} col.c-img{width:84px}
+  col.c-h{width:26px} col.c-no{width:62px} col.c-img{width:84px}
   col.c-vend{width:126px} col.c-ph{width:70px} col.c-cat{width:90px}
   col.c-name{width:150px} col.c-pname{width:150px} col.c-col{width:120px}
   col.c-iq{width:126px} col.c-opt{width:150px}
@@ -159,6 +159,21 @@
   .handle:active{cursor:grabbing}
   .handle.off{cursor:default;color:#e2e1dc}
   .rowno{color:var(--ink-3);font-size:12px;font-variant-numeric:tabular-nums;text-align:center}
+  .rowno .inner{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+  .ck{display:inline-flex;align-items:center;cursor:pointer;flex:0 0 auto}
+  .ck input{
+    appearance:none;-webkit-appearance:none;margin:0;
+    width:17px;height:17px;border:1.5px solid #cfceC8;border-radius:5px;background:#fff;
+    cursor:pointer;position:relative;transition:background .12s,border-color .12s;
+  }
+  .ck input:hover{border-color:var(--accent)}
+  .ck input:checked{background:#4a7c59;border-color:#4a7c59}
+  .ck input:checked::after{
+    content:"";position:absolute;left:5px;top:1.5px;width:4px;height:9px;
+    border:solid #fff;border-width:0 2px 2px 0;transform:rotate(42deg);
+  }
+  tbody tr.done td{background:#f6faf7}
+  tbody tr.done .rn{color:#4a7c59;font-weight:700}
 
   .cell-in{
     width:100%;border:1px solid transparent;background:transparent;border-radius:6px;
@@ -528,7 +543,7 @@
       <thead>
         <tr>
           <th class="c-h"></th>
-          <th style="text-align:center">NO</th>
+          <th style="text-align:center">확인 · NO</th>
           <th>이미지</th>
           <th>거래처</th>
           <th style="text-align:center">출시</th>
@@ -646,7 +661,7 @@
   }
   function newRow(d){
     var r = Object.assign({
-      id: seq++, uid:"", mt:0,
+      id: seq++, uid:"", mt:0, done:false,
       vendor:"", phase:"", category:"", names:[""], pname:"", material:"",
       qty:"", price:"", weight:"", sizeText:"", img:null, colors:[], options:[]
     }, d || {});
@@ -807,9 +822,11 @@
 
   function rowHTML(r, n){
     var g = (groupBy !== "none");
-    return '<tr data-id="'+r.id+'">'
+    return '<tr data-id="'+r.id+'"'+(r.done?' class="done"':'')+'>'
       + '<td class="handle'+(g?" off":"")+'"'+(g?'':' data-act="handle" draggable="true"')+' title="'+(g?'묶어보기를 끄면 순서를 바꿀 수 있습니다':'끌어서 순서 변경')+'">⠿</td>'
-      + '<td class="rowno" data-l="NO">'+n+'</td>'
+      + '<td class="rowno" data-l="확인"><span class="inner">'
+        + '<label class="ck" title="확인 완료 표시"><input type="checkbox" data-f="done"'+(r.done?" checked":"")+'></label>'
+        + '<span class="rn">'+n+'</span></span></td>'
       + '<td data-l="이미지">'+ thumbHTML(r) +'</td>'
       + '<td data-l="거래처"><div class="combo">'
         + '<input class="cell-in vend" data-f="vendor" list="vendorlist" value="'+esc(r.vendor)+'" title="'+esc(r.vendor)+'" placeholder="거래처">'
@@ -1075,6 +1092,13 @@
   tbody.addEventListener("change", function(e){
     var act = e.target.getAttribute("data-act");
     if(act==="swatch"){ swatchSync(e.target); return; }
+    if(e.target.getAttribute("data-f")==="done"){
+      var dtr = e.target.closest("tr"), dr = find(+dtr.dataset.id);
+      if(dr){ dr.done = e.target.checked; touch(dr); }
+      dtr.classList.toggle("done", e.target.checked);
+      scheduleSave();
+      return;
+    }
     var f = e.target.getAttribute("data-f");
     if(f!=="vendor" && f!=="phase" && f!=="category") return;
     var tr = e.target.closest("tr"), r = find(+tr.dataset.id);
@@ -1535,7 +1559,7 @@
         rowLevelPrice = "";
       }
       return newRow({
-        uid: r.uid || "", mt: r.mt || 0,
+        uid: r.uid || "", mt: r.mt || 0, done: !!r.done,
         vendor:(r.vendor || legacyVendor || ""),
         phase:(r.phase||""), category:(r.category||""),
         names: (Array.isArray(r.names) && r.names.length) ? r.names.slice()
@@ -1634,7 +1658,7 @@
       lines.push(["제목", m.title, "담당자", m.owner, "작성일", m.date]);
       lines.push([]);
     }
-    lines.push(["NO","거래처","출시","카테고리","품명","상품명","진행컬러","컬러코드","초도수량","옵션","단가","무게(g)","사이즈","소재"]);
+    lines.push(["NO","거래처","출시","카테고리","품명","상품명","진행컬러","컬러코드","초도수량","옵션","단가","무게(g)","사이즈","소재","확인"]);
     exportGroups().forEach(function(g){
       var gq = 0;
       g.rows.forEach(function(r){
@@ -1652,18 +1676,19 @@
             (c ? num(c.price) : num(r.price)) || "",
             first ? (num(r.weight)||"") : "",
             first ? r.sizeText : "",
-            first ? r.material : ""
+            first ? r.material : "",
+            (first && r.done) ? "완료" : ""
           ]);
         });
       });
       if(g.key !== null){
-        lines.push(["", klabel(g.key)+" 소계", "", "", "", "", "", "", gq, "", "", "", "", ""]);
+        lines.push(["", klabel(g.key)+" 소계", "", "", "", "", "", "", gq, "", "", "", "", "", ""]);
         lines.push([]);
       }
     });
     var q=0, w=0;
     view.forEach(function(r){ var qq=rowQty(r); q+=qq; w+=qq*num(r.weight); });
-    lines.push(["","합계","","","","","","",q,"","",w||"","","총 중량(g)"]);
+    lines.push(["","합계","","","","","","",q,"","",w||"","","총 중량(g)",""]);
     var csv = lines.map(function(row){
       return row.map(function(c){
         var s = String(c==null?"":c);
@@ -1705,8 +1730,8 @@
   }
 
   // A NO | B 이미지 | C 거래처 | D 출시 | E 카테고리 | F 품명 | G 상품명 | H 진행컬러
-  // I 컬러코드 | J 초도수량 | K 옵션 | L 단가 | M 무게 | N 사이즈 | O 소재  (컬러별로 한 줄씩)
-  var XC = ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O"];
+  // I 컬러코드 | J 초도수량 | K 옵션 | L 단가 | M 무게 | N 사이즈 | O 소재 | P 확인
+  var XC = ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P"];
   function cT(ref,s,v){ return '<c r="'+ref+'" s="'+s+'" t="inlineStr"><is><t xml:space="preserve">'+esc(v)+'</t></is></c>'; }
   function cN(ref,s,v){ return '<c r="'+ref+'" s="'+s+'"><v>'+v+'</v></c>'; }
   function cF(ref,s,f,v){ return '<c r="'+ref+'" s="'+s+'"><f>'+esc(f)+'</f><v>'+v+'</v></c>'; }
@@ -1783,7 +1808,7 @@
 
   async function buildXlsx(){
     var m = meta(), EMU = 9525, BOX = 68;
-    var COLW = [6,13,17,7,11,22,22,15,14,12,16,12,10,15,20];
+    var COLW = [6,13,17,7,11,22,22,15,14,12,16,12,10,15,20,7];
     var groups = exportGroups();
     var view = viewRows();
     var body = "", merges = [], media = [], anchors = [];
@@ -1800,7 +1825,7 @@
     merges.push("A1:"+LAST+"1", "A2:"+LAST+"2");
     body += '<row r="3" ht="8" customHeight="1"/>';
 
-    var HEAD = ["NO","이미지","거래처","출시","카테고리","품명","상품명","진행컬러","컬러코드","초도수량","옵션","단가","무게(g)","사이즈","소재"];
+    var HEAD = ["NO","이미지","거래처","출시","카테고리","품명","상품명","진행컬러","컬러코드","초도수량","옵션","단가","무게(g)","사이즈","소재","확인"];
     body += '<row r="4" ht="24" customHeight="1">' + HEAD.map(function(h,i){ return cT(XC[i]+"4",3,h); }).join("") + '</row>';
 
     var sizes = await Promise.all(view.map(function(r){ return r.img ? imgMeta(r.img) : Promise.resolve(null); }));
@@ -1858,6 +1883,7 @@
             + (first && wt ? cN(XC[12]+rn, 6, wt) : cE(XC[12]+rn, 6))
             + cT(XC[13]+rn, 15, first ? r.sizeText : "")
             + cT(XC[14]+rn, 4, first ? r.material : "")
+            + cT(XC[15]+rn, 15, (first && r.done) ? "완료" : "")
             + '</row>';
         });
       });
@@ -1872,7 +1898,7 @@
           + cT("F"+hr,12, g.rows.length + "개 품목")
           + cE("G"+hr,12) + cE("H"+hr,12) + cE("I"+hr,12)
           + cF("J"+hr,13,"SUM(J"+gStart+":J"+e+")", gq)
-          + cE("K"+hr,12) + cE("L"+hr,12) + cE("M"+hr,12) + cE("N"+hr,12) + cE("O"+hr,12)
+          + cE("K"+hr,12) + cE("L"+hr,12) + cE("M"+hr,12) + cE("N"+hr,12) + cE("O"+hr,12) + cE("P"+hr,12)
           + '</row>';
         body = body.replace("<!--GRP"+hr+"-->", grpXml);
         subRows.push(hr);
@@ -1894,6 +1920,7 @@
       + (tw ? cN("M"+rn,10,tw) : cE("M"+rn,9))
       + cE("N"+rn,9)
       + cT("O"+rn,9, tw ? "총 중량(g)" : "")
+      + cE("P"+rn,9)
       + '</row>';
     var lastRow = rn;
 
